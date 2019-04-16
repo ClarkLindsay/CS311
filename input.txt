@@ -1,16 +1,2 @@
-//This is a test
-if A + B = C
-A := N < p
-false
-true
-p
-88
-h7
-f_u
-f_9
-//commend
-77
-if
-fi
-<
+
 end

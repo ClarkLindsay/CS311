@@ -1,20 +1,25 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
 
 public class Lexer {
 
-  private static int pointer = 0;
-  private static int position = 1;
-  private static String input = "";
-  private static String lexeme = "";
+  public static int pointer = 0;
+  private static int position = 0;
+  public static String input = "";
+  public static String lexeme = "";
+  private static int prevPointer = 0;
+  public static int prevPosition = 0;
+  public static String prevLexeme = "";
+  public static String[] lines = new String[10000];
+  public static int lineNum = 0;
+  public static boolean flag = false;
+  public static int linePoint = 0;
 
-  public static void main(String[] args){
-
+  public Lexer(String input){
     String filename = null;
 
     try {
-      filename = args[0];
+      filename = input;
     }
     catch(Exception e){
       fail("Error: Please specify filename");
@@ -23,22 +28,20 @@ public class Lexer {
 		try {
       BufferedReader br = new BufferedReader(new FileReader(filename));
 			String currentLine;
-      if ((currentLine = br.readLine()) != null)
-        input = currentLine;
+      if ((currentLine = br.readLine()) != null){
+        this.input = currentLine.trim();
+        lines[0] = currentLine.trim();
+      }
+      int count = 1;
 			while ((currentLine = br.readLine()) != null) {
-				input = input + "\n" + currentLine;
+				this.input = this.input.trim() + "\n" + currentLine.trim();
+        lines[count] = currentLine.trim();
+        count++;
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			fail("Error: Error reading file");
 		}
-
-    next();
-    while (!kind().equals("end-of-text")){
-      System.out.println("<" + position() + ", " + kind() + ", " + value() + ">");
-      position = position + lexeme.length()+1;
-      next();
-    }
-   }//end main
+  }
 
   public static boolean letter(char let){
     if (let == 'a' || let == 'b' || let == 'c' || let == 'd' || let == 'e' || let == 'f' || let == 'g' || let == 'h' || let == 'i'
@@ -49,9 +52,8 @@ public class Lexer {
     || let == 'S' || let == 'T' || let == 'U' || let == 'V' || let == 'W' || let == 'X' || let == 'Y' || let == 'Z'){
         return true;
     }
-    else {
+    else
       return false;
-    }
   }//end letter
 
   public static boolean digit(char dig){
@@ -59,69 +61,95 @@ public class Lexer {
     || dig == '8' || dig == '9'){
         return true;
     }
-    else {
+    else
       return false;
-    }
   }//end digit
 
+  public static boolean whiteSpace(char spc){
+    if (spc == ' ' || spc == '\t' || spc == '\r')
+      return true;
+    else
+      return false;
+  }//end whiteSpace
+
   public static String next(){
+    prevPointer = pointer;
+    prevPosition = position;
+
+    if (flag){
+      lineNum++;
+      linePoint = 0;
+      flag = false;
+    }
+
     char c = '#';
-    boolean loop = true;
     String next = "";
 
-    while (loop == true){
-      try {
+    while (c != '\n'){
+      try{
         c = nextChar(input, pointer);
-        pointer++;
+      }
+      catch (Exception e){break;}
+
+      try{
+        if (lines[lineNum].equals("")){
+          lineNum++;
+          linePoint = 0;
+        }
       }
       catch (Exception e){
-        c = ' ';
+        lexeme = "end";
         break;
       }
-      if (c == ' ')
-        break;
 
-      else if (c == '\n'){
+      if (c == '/' && nextChar(input, pointer+1) == '/'){
+        //if (){
+          lineNum++;
+          linePoint = 0;
+        //}
+        pointer = pointer + 2;
         c = nextChar(input, pointer);
-        if (c == '/'){
+        while (c != '\n'){
           c = nextChar(input, pointer);
-          if (c == '/'){
-            pointer = pointer+2;
-            while (c != '\n'){
-                c = nextChar(input, pointer);
-                pointer++;
-            }
-          }
-        }
-        break;
-      }
-
-      else if (c == '/'){
-        c = nextChar(input, pointer);
-        if (c == '/'){
           pointer++;
-          while (c != '\n'){
-            c = nextChar(input, pointer);
-            pointer++;
-          }
+          linePoint++;
+        }
+        c = nextChar(input, pointer);
+        if (c == '\n'){
           pointer++;
         }
-        break;
+        continue;
       }
 
-      else
-        next = next + c;
+      if (whiteSpace(c)){
+        while (whiteSpace(c)){
+          pointer++;
+          linePoint++;
+          c = nextChar(input, pointer);
+        }
+        if (input != "")
+          break;
+      }
 
-      try {
-        c = nextChar(input, pointer);
+      else {
+        if (c != '\n')
+          next = next + c;
+        else
+          lineNum++;
+        pointer++;
+        linePoint++;
+        try {
+          c = nextChar(input, pointer);
+        }
+        catch (Exception e){
+          if (!next.equals("end"))
+            fail("Error: Missing 'end' keyword");
+        }
       }
-      catch (Exception e){
-        if (!next.equals("end"))
-          fail("Error: Missing 'end' keyword");
-      }
-      lexeme = next;
     }
-    return lexeme;
+    prevLexeme = lexeme;
+    lexeme = next;
+    return next;
   }//end next
 
   public static String kind(){
@@ -199,7 +227,7 @@ public class Lexer {
       type = "+";
 
     else if (lexeme.equals("-"))
-      type = "+";
+      type = "-";
 
     else if (lexeme.equals("*"))
       type = "*";
@@ -230,7 +258,7 @@ public class Lexer {
           break;
         }
         if (letter(c) != true && digit(c) != true && c != '_')
-          fail("Error at position " + (position() + point - 1) + ": Identifiers can only contain letters, numbers, and '_'");
+          fail("Error at position " + position() + ": Identifiers can only contain letters, numbers, and '_'");
       }
       type = "ID";
     }
@@ -255,7 +283,7 @@ public class Lexer {
           break;
         }
         if (digit(c) != true)
-          fail("Error at position " + (position() + point - 1)+ ": Digits can only contain (0-9)");
+          fail("Error at position " + position() + ": Digits can only contain (0-9)");
         type = "NUM";
       }
     }
@@ -266,13 +294,16 @@ public class Lexer {
     }
 
     else {
-      fail("Error at position " + position() + ": Invalid character");
+      fail("Error at position " + (position() - point + 1) + ": Invalid character - " + c);
     }
     return type;
   }//end kind
 
   public static int position(){
-    return (position);
+    //int pos = position;
+    prevPosition = position;
+    position = position + lexeme.length();
+    return (prevPosition);
   }//end position
 
   public static String value(){
@@ -290,4 +321,13 @@ public class Lexer {
     char next = input.charAt(point);
     return next;
   }//end nextChar
+
+  public static int getLine(){
+    return lineNum;
+  }
+
+  public static int getLinePoint(){
+    return linePoint;
+  }
+
 }//end Lexer
